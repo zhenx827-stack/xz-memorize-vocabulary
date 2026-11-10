@@ -1,0 +1,48 @@
+{
+  "pages": [
+    {
+      "path": "pages/index/index",
+      "style": {
+        "navigationBarTitleText": "选词书",
+        "navigationBarBackgroundColor": "#0a0f1e",
+        "navigationBarTextStyle": "white",
+        "backgroundColor": "#0a0f1e"
+      }
+    },
+    {
+      "path": "pages/study/study",
+      "style": {
+        "navigationBarTitleText": "背单词",
+        "navigationBarBackgroundColor": "#0a0f1e",
+        "navigationBarTextStyle": "white",
+        "backgroundColor": "#0a0f1e",
+        "enablePullDownRefresh": false
+      }
+    },
+    {
+      "path": "pages/wrong/wrong",
+      "style": {
+        "navigationBarTitleText": "错题集",
+        "navigationBarBackgroundColor": "#0a0f1e",
+        "navigationBarTextStyle": "white",
+        "backgroundColor": "#0a0f1e"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "white",
+    "navigationBarTitleText": "AI 背单词",
+    "navigationBarBackgroundColor": "#0a0f1e",
+    "backgroundColor": "#0a0f1e"
+  },
+  "tabBar": {
+    "color": "#7c87a3",
+    "selectedColor": "#6d9bff",
+    "backgroundColor": "#0d1425",
+    "borderStyle": "black",
+    "list": [
+      { "pagePath": "pages/index/index", "text": "学习" },
+      { "pagePath": "pages/wrong/wrong", "text": "错题集" }
+    ]
+  }
+}
