@@ -7,10 +7,10 @@ export default {
 </script>
 
 <style>
-/* 全局基础样式：深色卡片风格 */
+/* 全局基础样式：浅色纸感风格 */
 page {
-  background: #0a0f1e;
-  color: #e8edf9;
+  background: #f5f7fa;
+  color: #1a2332;
   font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', Helvetica, Arial, sans-serif;
   box-sizing: border-box;
 }

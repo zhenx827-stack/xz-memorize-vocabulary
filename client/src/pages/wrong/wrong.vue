@@ -1,7 +1,5 @@
 <template>
   <view class="page">
-    <view class="glow" />
-
     <view class="header">
       <view class="header-row">
         <view>
@@ -15,7 +13,7 @@
     </view>
 
     <view v-if="list.length > 0" class="review-bar" hover-class="review-hover" @tap="startReview">
-      <text class="review-icon">🔁</text>
+      <view class="review-mark">复</view>
       <view class="review-text">
         <text class="review-title">重新背这 {{ list.length }} 个错题</text>
         <text class="review-sub">打乱顺序再考一遍，答对也不删，随时复习</text>
@@ -29,7 +27,7 @@
     </view>
 
     <view v-else-if="list.length === 0" class="empty">
-      <text class="empty-icon">📕</text>
+      <view class="empty-mark">空</view>
       <text class="empty-title">错题集还是空的</text>
       <text class="empty-sub">去背一组单词，答错的词会自动进来</text>
       <view class="btn-go" @tap="goStudy">去背单词</view>
@@ -102,7 +100,7 @@ export default {
       uni.showModal({
         title: '清空错题集',
         content: '确定要清空所有错题吗？此操作不可恢复。',
-        confirmColor: '#f43f5e',
+        confirmColor: '#c43c3c',
         success: async (r) => {
           if (!r.confirm) return;
           try {
@@ -127,27 +125,23 @@ export default {
 
 <style scoped>
 .page {
+  --ink: #1a2332;
+  --muted: #6b778a;
+  --line: #dce3ec;
+  --paper: #ffffff;
+  --accent: #0f7a6e;
+  --accent-soft: #e6f4f1;
+  --bad: #c43c3c;
+  --bad-soft: #fceeee;
+
   min-height: 100vh;
-  padding: 40rpx 36rpx 60rpx;
-  background: #0a0f1e;
-  position: relative;
-  overflow: hidden;
-}
-.glow {
-  position: absolute;
-  width: 480rpx;
-  height: 480rpx;
-  top: -180rpx;
-  right: -160rpx;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(244, 63, 94, 0.22), rgba(244, 63, 94, 0));
-  filter: blur(70rpx);
-  pointer-events: none;
+  padding: 28rpx 32rpx 64rpx;
+  background:
+    radial-gradient(ellipse 90% 50% at 100% 0%, rgba(15, 122, 110, 0.08), transparent 55%),
+    linear-gradient(180deg, #edf2f7 0%, #f5f7fa 42%, #eef1f5 100%);
 }
 
 .header {
-  position: relative;
-  z-index: 1;
   margin-bottom: 28rpx;
 }
 .header-row {
@@ -157,45 +151,55 @@ export default {
 }
 .title {
   display: block;
-  font-size: 52rpx;
+  font-size: 48rpx;
   font-weight: 700;
-  color: #f2f6ff;
+  color: var(--ink);
 }
 .subtitle {
   display: block;
   margin-top: 12rpx;
   font-size: 24rpx;
-  color: #7c8aab;
+  color: var(--muted);
+  line-height: 1.5;
 }
 .clear-btn {
-  padding: 12rpx 26rpx;
-  border-radius: 999rpx;
+  padding: 12rpx 24rpx;
+  border-radius: 14rpx;
   font-size: 22rpx;
-  color: #fb7185;
-  background: rgba(244, 63, 94, 0.1);
-  border: 1rpx solid rgba(244, 63, 94, 0.28);
+  color: var(--bad);
+  background: var(--bad-soft);
+  border: 1rpx solid rgba(196, 60, 60, 0.22);
 }
 .clear-hover {
-  opacity: 0.7;
+  opacity: 0.75;
 }
 
 .review-bar {
-  position: relative;
-  z-index: 1;
   display: flex;
   align-items: center;
-  padding: 26rpx 28rpx;
-  border-radius: 26rpx;
+  padding: 24rpx 26rpx;
+  border-radius: 20rpx;
   margin-bottom: 28rpx;
-  background: linear-gradient(135deg, rgba(91, 140, 255, 0.18), rgba(124, 92, 255, 0.14));
-  border: 1rpx solid rgba(109, 155, 255, 0.3);
+  background: var(--paper);
+  border: 1rpx solid rgba(15, 122, 110, 0.22);
+  box-shadow: 0 8rpx 24rpx rgba(26, 35, 50, 0.03);
 }
 .review-hover {
-  opacity: 0.85;
+  background: #f8fafc;
 }
-.review-icon {
-  font-size: 40rpx;
+.review-mark {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 14rpx;
   margin-right: 20rpx;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 26rpx;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 .review-text {
   flex: 1;
@@ -205,34 +209,35 @@ export default {
 .review-title {
   font-size: 30rpx;
   font-weight: 600;
-  color: #f2f6ff;
+  color: var(--ink);
 }
 .review-sub {
   font-size: 21rpx;
-  color: #93a4c9;
+  color: var(--muted);
   margin-top: 8rpx;
+  line-height: 1.5;
 }
 .review-arrow {
   font-size: 40rpx;
-  color: #8fb4ff;
+  color: var(--accent);
 }
 
 .list {
   position: relative;
-  z-index: 1;
 }
 .item {
   padding: 28rpx;
-  margin-bottom: 22rpx;
-  border-radius: 26rpx;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1rpx solid rgba(255, 255, 255, 0.07);
+  margin-bottom: 18rpx;
+  border-radius: 20rpx;
+  background: var(--paper);
+  border: 1rpx solid var(--line);
+  box-shadow: 0 8rpx 24rpx rgba(26, 35, 50, 0.03);
   animation: rise 0.4s ease both;
 }
 @keyframes rise {
   from {
     opacity: 0;
-    transform: translateY(18rpx);
+    transform: translateY(16rpx);
   }
   to {
     opacity: 1;
@@ -248,44 +253,46 @@ export default {
   display: flex;
   align-items: baseline;
   flex: 1;
+  min-width: 0;
 }
 .item-word {
-  font-size: 40rpx;
+  font-size: 38rpx;
   font-weight: 700;
-  color: #ffffff;
-  margin-right: 16rpx;
+  color: var(--ink);
+  margin-right: 14rpx;
 }
 .item-phonetic {
   font-size: 22rpx;
-  color: #7c8aab;
+  color: var(--muted);
 }
 .item-badge {
-  padding: 6rpx 16rpx;
-  border-radius: 999rpx;
-  background: rgba(244, 63, 94, 0.12);
+  padding: 6rpx 14rpx;
+  border-radius: 10rpx;
+  background: var(--bad-soft);
   font-size: 20rpx;
-  color: #fb7185;
+  color: var(--bad);
   flex-shrink: 0;
+  border: 1rpx solid rgba(196, 60, 60, 0.18);
 }
 .item-meaning {
   display: block;
   margin-top: 14rpx;
   font-size: 28rpx;
-  color: #dbe4f8;
+  color: var(--ink);
   line-height: 1.6;
 }
 .item-example {
   display: block;
   margin-top: 14rpx;
   font-size: 24rpx;
-  color: #8fa2c9;
+  color: #4a5568;
   line-height: 1.6;
 }
 .item-example-zh {
   display: block;
   margin-top: 4rpx;
   font-size: 22rpx;
-  color: #64719a;
+  color: var(--muted);
   line-height: 1.6;
 }
 .item-foot {
@@ -296,48 +303,60 @@ export default {
 }
 .item-level {
   font-size: 20rpx;
-  color: #6d9bff;
-  padding: 4rpx 14rpx;
+  color: var(--accent);
+  padding: 4rpx 12rpx;
   border-radius: 8rpx;
-  background: rgba(109, 155, 255, 0.12);
+  background: var(--accent-soft);
 }
 .item-remove {
   font-size: 22rpx;
-  color: #64719a;
+  color: var(--muted);
   padding: 6rpx 16rpx;
   border-radius: 12rpx;
-  border: 1rpx solid rgba(255, 255, 255, 0.1);
+  border: 1rpx solid var(--line);
+  background: #f8fafc;
 }
 
 .empty {
-  position: relative;
-  z-index: 1;
-  min-height: 60vh;
+  min-height: 58vh;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
 }
-.empty-icon {
-  font-size: 96rpx;
-  margin-bottom: 24rpx;
+.empty-mark {
+  width: 96rpx;
+  height: 96rpx;
+  margin-bottom: 28rpx;
+  border-radius: 20rpx;
+  background: #f0f3f7;
+  border: 1rpx solid var(--line);
+  color: var(--muted);
+  font-size: 36rpx;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .empty-title {
   font-size: 34rpx;
   font-weight: 600;
-  color: #e8edf9;
+  color: var(--ink);
 }
 .empty-sub {
   margin-top: 14rpx;
   font-size: 24rpx;
-  color: #7c8aab;
+  color: var(--muted);
+  text-align: center;
+  padding: 0 40rpx;
+  line-height: 1.6;
 }
 .btn-go {
   margin-top: 40rpx;
-  padding: 0 60rpx;
+  width: 320rpx;
   height: 88rpx;
-  border-radius: 44rpx;
-  background: linear-gradient(135deg, #5b8cff, #7c5cff);
+  border-radius: 16rpx;
+  background: var(--accent);
   color: #fff;
   font-size: 28rpx;
   font-weight: 600;
@@ -349,8 +368,8 @@ export default {
   width: 52rpx;
   height: 52rpx;
   border-radius: 50%;
-  border: 4rpx solid rgba(109, 155, 255, 0.2);
-  border-top-color: #6d9bff;
+  border: 4rpx solid rgba(15, 122, 110, 0.15);
+  border-top-color: var(--accent);
   animation: spin 0.85s linear infinite;
   margin-bottom: 20rpx;
 }

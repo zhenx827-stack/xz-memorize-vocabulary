@@ -1,17 +1,15 @@
 <template>
   <view class="page">
-    <view class="glow" />
-
     <!-- 加载中 -->
     <view v-if="status === 'loading'" class="center-box">
       <view class="spinner" />
-      <text class="center-title">AI 正在生成单词…</text>
+      <text class="center-title">正在出题</text>
       <text class="center-sub">{{ loadingHint }}</text>
     </view>
 
     <!-- 出错 -->
     <view v-else-if="status === 'error'" class="center-box">
-      <text class="center-emoji">😵</text>
+      <text class="center-mark">!</text>
       <text class="center-title">加载失败</text>
       <text class="center-sub">{{ errorMsg }}</text>
       <view class="btn-primary" @tap="loadBatch(false)">重试</view>
@@ -20,7 +18,7 @@
 
     <!-- 本轮结束 -->
     <view v-else-if="status === 'done'" class="center-box">
-      <text class="center-emoji">{{ accuracy >= 80 ? '🎉' : accuracy >= 60 ? '💪' : '🌱' }}</text>
+      <text class="center-mark done">{{ accuracy >= 80 ? '优' : accuracy >= 60 ? '良' : '练' }}</text>
       <text class="center-title">本轮完成</text>
       <view class="stats">
         <view class="stat">
@@ -38,7 +36,7 @@
           <text class="stat-label">正确率</text>
         </view>
       </view>
-      <text class="center-sub">{{ wrongCount > 0 ? `已把 ${wrongCount} 个易错词收进错题集` : '全部答对，太强了！' }}</text>
+      <text class="center-sub">{{ wrongCount > 0 ? `已把 ${wrongCount} 个易错词收进错题集` : '全部答对，继续保持' }}</text>
       <view class="btn-primary" @tap="loadBatch(true)">再来一组</view>
       <view class="btn-ghost" @tap="goWrong">去看看错题集</view>
     </view>
@@ -51,14 +49,14 @@
         </view>
         <view class="topbar-info">
           <text class="counter">{{ index + 1 }} / {{ words.length }}</text>
-          <view :class="['source-tag', degraded ? 'tag-fallback' : 'tag-ai']">
-            <text>{{ degraded ? '本地词库' : 'AI 生成' }}</text>
-          </view>
+          <text :class="['source-tag', degraded ? 'tag-fallback' : 'tag-ai']">
+            {{ degraded ? '本地词库' : 'AI 生成' }}
+          </text>
         </view>
       </view>
 
       <view v-if="degraded" class="notice">
-        <text>⚠️ {{ notice }}</text>
+        <text>{{ notice }}</text>
       </view>
 
       <view class="card" :class="{ 'card-out': cardAnim }">
@@ -98,10 +96,10 @@
           <text class="detail-zh">{{ current.exampleZh }}</text>
         </view>
         <view v-if="current.mnemonic" class="detail-block">
-          <text class="detail-tag">AI 记忆法</text>
+          <text class="detail-tag">记忆法</text>
           <text class="detail-zh">{{ current.mnemonic }}</text>
         </view>
-        <view v-if="!isCorrect" class="btn-next" @tap="next">继续下一个 →</view>
+        <view v-if="!isCorrect" class="btn-next" @tap="next">继续下一个</view>
       </view>
     </view>
   </view>
@@ -199,7 +197,6 @@ export default {
 
       if (opt.correct) {
         this.correctCount += 1;
-        // 答对自动进入下一题
         this.timer = setTimeout(() => this.next(), 850);
       } else {
         this.wrongCount += 1;
@@ -244,59 +241,75 @@ export default {
 
 <style scoped>
 .page {
+  --ink: #1a2332;
+  --muted: #6b778a;
+  --line: #dce3ec;
+  --paper: #ffffff;
+  --wash: #e8eef4;
+  --accent: #0f7a6e;
+  --accent-soft: #e6f4f1;
+  --ok: #1a7f4b;
+  --ok-soft: #e8f6ee;
+  --bad: #c43c3c;
+  --bad-soft: #fceeee;
+  --warn: #9a6b14;
+  --warn-soft: #f8f0dc;
+
   min-height: 100vh;
-  padding: 32rpx 36rpx 60rpx;
-  background: #0a0f1e;
-  position: relative;
-  overflow: hidden;
-}
-.glow {
-  position: absolute;
-  width: 520rpx;
-  height: 520rpx;
-  top: -180rpx;
-  left: -140rpx;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(109, 155, 255, 0.28), rgba(109, 155, 255, 0));
-  filter: blur(60rpx);
-  pointer-events: none;
+  padding: 28rpx 32rpx 64rpx;
+  background:
+    radial-gradient(ellipse 90% 50% at 100% 0%, rgba(15, 122, 110, 0.08), transparent 55%),
+    linear-gradient(180deg, #edf2f7 0%, #f5f7fa 42%, #eef1f5 100%);
 }
 
-/* 通用居中盒子 */
 .center-box {
   min-height: 70vh;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  position: relative;
-  z-index: 1;
 }
-.center-emoji {
-  font-size: 90rpx;
-  margin-bottom: 24rpx;
+.center-mark {
+  width: 96rpx;
+  height: 96rpx;
+  margin-bottom: 28rpx;
+  border-radius: 20rpx;
+  background: #f0f3f7;
+  border: 1rpx solid var(--line);
+  color: var(--muted);
+  font-size: 48rpx;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.center-mark.done {
+  background: var(--accent-soft);
+  border-color: rgba(15, 122, 110, 0.22);
+  color: var(--accent);
 }
 .center-title {
   font-size: 40rpx;
   font-weight: 700;
-  color: #f2f6ff;
+  color: var(--ink);
+  letter-spacing: 1rpx;
 }
 .center-sub {
   margin-top: 16rpx;
   font-size: 24rpx;
-  color: #7c8aab;
+  color: var(--muted);
   text-align: center;
   line-height: 1.7;
   padding: 0 40rpx;
 }
 .spinner {
-  width: 64rpx;
-  height: 64rpx;
+  width: 56rpx;
+  height: 56rpx;
   border-radius: 50%;
-  border: 5rpx solid rgba(109, 155, 255, 0.2);
-  border-top-color: #6d9bff;
-  animation: spin 0.85s linear infinite;
-  margin-bottom: 30rpx;
+  border: 4rpx solid rgba(15, 122, 110, 0.15);
+  border-top-color: var(--accent);
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 28rpx;
 }
 @keyframes spin {
   to {
@@ -307,11 +320,11 @@ export default {
 .stats {
   display: flex;
   align-items: center;
-  margin: 44rpx 0 30rpx;
-  padding: 30rpx 50rpx;
-  border-radius: 28rpx;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1rpx solid rgba(255, 255, 255, 0.07);
+  margin: 40rpx 0 28rpx;
+  padding: 28rpx 40rpx;
+  border-radius: 20rpx;
+  background: var(--paper);
+  border: 1rpx solid var(--line);
 }
 .stat {
   display: flex;
@@ -322,139 +335,126 @@ export default {
 .stat-num {
   font-size: 52rpx;
   font-weight: 700;
-  color: #f2f6ff;
+  color: var(--ink);
 }
 .stat-num.ok {
-  color: #4ade80;
+  color: var(--ok);
 }
 .stat-num.bad {
-  color: #fb7185;
+  color: var(--bad);
 }
 .stat-label {
   font-size: 22rpx;
-  color: #7c8aab;
+  color: var(--muted);
   margin-top: 8rpx;
 }
 .stat-divider {
   width: 1rpx;
-  height: 60rpx;
-  background: rgba(255, 255, 255, 0.1);
-  margin: 0 10rpx;
+  height: 56rpx;
+  background: var(--line);
+  margin: 0 8rpx;
 }
 
 .btn-primary {
-  margin-top: 40rpx;
+  margin-top: 36rpx;
   width: 420rpx;
-  height: 92rpx;
-  border-radius: 46rpx;
-  background: linear-gradient(135deg, #5b8cff, #7c5cff);
+  height: 88rpx;
+  border-radius: 16rpx;
+  background: var(--accent);
   color: #fff;
   font-size: 30rpx;
   font-weight: 600;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 14rpx 34rpx rgba(91, 140, 255, 0.32);
 }
 .btn-ghost {
-  margin-top: 20rpx;
-  height: 84rpx;
-  padding: 0 40rpx;
-  border-radius: 42rpx;
-  color: #8fa2c9;
+  margin-top: 18rpx;
+  height: 80rpx;
+  padding: 0 36rpx;
+  border-radius: 16rpx;
+  color: var(--muted);
   font-size: 26rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1rpx solid rgba(255, 255, 255, 0.12);
+  border: 1rpx solid var(--line);
+  background: rgba(255, 255, 255, 0.65);
 }
 
-/* 顶部进度 */
 .topbar {
-  position: relative;
-  z-index: 1;
   margin-bottom: 18rpx;
 }
 .progress-wrap {
-  height: 10rpx;
-  border-radius: 6rpx;
-  background: rgba(255, 255, 255, 0.08);
+  height: 8rpx;
+  border-radius: 4rpx;
+  background: rgba(26, 35, 50, 0.08);
   overflow: hidden;
 }
 .progress-bar {
   height: 100%;
-  border-radius: 6rpx;
-  background: linear-gradient(90deg, #5b8cff, #8f6bff);
+  border-radius: 4rpx;
+  background: var(--accent);
   transition: width 0.35s ease;
 }
 .topbar-info {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 16rpx;
+  margin-top: 14rpx;
 }
 .counter {
   font-size: 24rpx;
-  color: #7c8aab;
+  color: var(--muted);
   letter-spacing: 1rpx;
 }
 .source-tag {
-  padding: 6rpx 16rpx;
-  border-radius: 999rpx;
   font-size: 20rpx;
-}
-.tag-ai {
-  background: rgba(109, 155, 255, 0.14);
-  color: #8fb4ff;
+  color: var(--accent);
+  padding: 4rpx 0;
 }
 .tag-fallback {
-  background: rgba(250, 204, 21, 0.12);
-  color: #facc15;
+  color: var(--warn);
 }
 
 .notice {
-  position: relative;
-  z-index: 1;
   margin-bottom: 16rpx;
-  padding: 16rpx 22rpx;
-  border-radius: 18rpx;
-  background: rgba(250, 204, 21, 0.09);
-  border: 1rpx solid rgba(250, 204, 21, 0.22);
-  font-size: 21rpx;
-  color: #e9c95a;
+  padding: 16rpx 20rpx;
+  border-radius: 14rpx;
+  background: var(--warn-soft);
+  border: 1rpx solid rgba(154, 107, 20, 0.18);
+  font-size: 22rpx;
+  color: var(--warn);
   line-height: 1.6;
 }
 
-/* 单词卡 */
 .card {
-  position: relative;
-  z-index: 1;
-  margin-top: 14rpx;
-  height: 400rpx;
-  border-radius: 36rpx;
-  padding: 34rpx;
-  background: linear-gradient(155deg, #1a2545 0%, #121a2f 100%);
-  border: 1rpx solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 24rpx 60rpx rgba(0, 0, 0, 0.45);
+  margin-top: 8rpx;
+  min-height: 360rpx;
+  border-radius: 24rpx;
+  padding: 36rpx 32rpx;
+  background: var(--paper);
+  border: 1rpx solid var(--line);
+  box-shadow: 0 10rpx 28rpx rgba(26, 35, 50, 0.05);
   display: flex;
   flex-direction: column;
-  transition: all 0.18s ease;
+  transition: opacity 0.18s ease, transform 0.18s ease;
 }
 .card-out {
   opacity: 0;
-  transform: translateX(-40rpx);
+  transform: translateX(-28rpx);
 }
 .card-label {
   font-size: 22rpx;
-  color: #7c8aab;
+  color: var(--muted);
   letter-spacing: 1rpx;
 }
 .word {
   margin-top: auto;
-  font-size: 76rpx;
+  font-size: 72rpx;
   font-weight: 700;
-  color: #ffffff;
-  letter-spacing: 1rpx;
+  color: var(--ink);
+  letter-spacing: 0.5rpx;
   line-height: 1.2;
   word-break: break-word;
 }
@@ -466,104 +466,100 @@ export default {
 }
 .phonetic {
   font-size: 28rpx;
-  color: #93a4c9;
-  margin-right: 18rpx;
+  color: var(--muted);
+  margin-right: 16rpx;
 }
 .pos {
   font-size: 22rpx;
-  color: #6d9bff;
-  padding: 4rpx 14rpx;
+  color: var(--accent);
+  padding: 4rpx 12rpx;
   border-radius: 8rpx;
-  background: rgba(109, 155, 255, 0.12);
+  background: var(--accent-soft);
 }
 
-/* 选项 */
 .options {
-  position: relative;
-  z-index: 1;
-  margin-top: 32rpx;
+  margin-top: 28rpx;
 }
 .option {
   display: flex;
   align-items: center;
-  min-height: 104rpx;
-  padding: 20rpx 26rpx;
-  margin-bottom: 20rpx;
-  border-radius: 24rpx;
-  background: rgba(255, 255, 255, 0.035);
-  border: 1rpx solid rgba(255, 255, 255, 0.08);
-  transition: all 0.18s ease;
+  min-height: 100rpx;
+  padding: 20rpx 24rpx;
+  margin-bottom: 16rpx;
+  border-radius: 18rpx;
+  background: var(--paper);
+  border: 1rpx solid var(--line);
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 .option-hover {
-  background: rgba(255, 255, 255, 0.07);
+  background: #f8fafc;
+  border-color: #c9d4e0;
 }
 .option-key {
   width: 44rpx;
   height: 44rpx;
-  border-radius: 12rpx;
-  background: rgba(255, 255, 255, 0.07);
-  color: #93a4c9;
+  border-radius: 10rpx;
+  background: #f0f3f7;
+  color: var(--muted);
   font-size: 22rpx;
+  font-weight: 600;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-right: 22rpx;
+  margin-right: 20rpx;
   flex-shrink: 0;
 }
 .option-text {
   font-size: 30rpx;
-  color: #dbe4f8;
+  color: var(--ink);
   flex: 1;
   line-height: 1.5;
 }
 .option-mark {
-  font-size: 32rpx;
+  font-size: 30rpx;
   font-weight: 700;
   margin-left: 12rpx;
 }
 .option-ok {
-  background: rgba(34, 197, 94, 0.14);
-  border-color: rgba(34, 197, 94, 0.5);
+  background: var(--ok-soft);
+  border-color: rgba(26, 127, 75, 0.35);
 }
 .option-ok .option-text,
 .option-ok .option-mark {
-  color: #4ade80;
+  color: var(--ok);
 }
 .option-ok .option-key {
-  background: rgba(34, 197, 94, 0.2);
-  color: #4ade80;
+  background: rgba(26, 127, 75, 0.12);
+  color: var(--ok);
 }
 .option-bad {
-  background: rgba(244, 63, 94, 0.13);
-  border-color: rgba(244, 63, 94, 0.5);
+  background: var(--bad-soft);
+  border-color: rgba(196, 60, 60, 0.35);
 }
 .option-bad .option-text,
 .option-bad .option-mark {
-  color: #fb7185;
+  color: var(--bad);
 }
 .option-bad .option-key {
-  background: rgba(244, 63, 94, 0.2);
-  color: #fb7185;
+  background: rgba(196, 60, 60, 0.12);
+  color: var(--bad);
 }
 .option-dim {
-  opacity: 0.45;
+  opacity: 0.42;
 }
 
-/* 解析 */
 .detail {
-  position: relative;
-  z-index: 1;
-  margin-top: 12rpx;
-  padding: 30rpx;
-  border-radius: 28rpx;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1rpx solid rgba(255, 255, 255, 0.08);
-  animation: fadeUp 0.25s ease both;
+  margin-top: 8rpx;
+  padding: 28rpx;
+  border-radius: 20rpx;
+  background: var(--paper);
+  border: 1rpx solid var(--line);
+  animation: fadeUp 0.22s ease both;
 }
 @keyframes fadeUp {
   from {
     opacity: 0;
-    transform: translateY(20rpx);
+    transform: translateY(16rpx);
   }
   to {
     opacity: 1;
@@ -571,60 +567,62 @@ export default {
   }
 }
 .detail-ok {
-  border-color: rgba(34, 197, 94, 0.3);
+  border-color: rgba(26, 127, 75, 0.28);
+  background: linear-gradient(180deg, #f5fbf7 0%, var(--paper) 100%);
 }
 .detail-bad {
-  border-color: rgba(244, 63, 94, 0.3);
+  border-color: rgba(196, 60, 60, 0.28);
+  background: linear-gradient(180deg, #fdf6f6 0%, var(--paper) 100%);
 }
 .detail-head {
   display: flex;
   flex-direction: column;
-  margin-bottom: 20rpx;
+  margin-bottom: 18rpx;
 }
 .detail-status {
   font-size: 24rpx;
   font-weight: 600;
-  color: #93a4c9;
+  color: var(--muted);
   margin-bottom: 10rpx;
 }
 .detail-ok .detail-status {
-  color: #4ade80;
+  color: var(--ok);
 }
 .detail-bad .detail-status {
-  color: #fb7185;
+  color: var(--bad);
 }
 .detail-word {
   font-size: 30rpx;
-  color: #f2f6ff;
+  color: var(--ink);
   font-weight: 600;
 }
 .detail-block {
-  margin-top: 18rpx;
+  margin-top: 16rpx;
   display: flex;
   flex-direction: column;
 }
 .detail-tag {
   font-size: 20rpx;
-  color: #6d9bff;
+  color: var(--accent);
   margin-bottom: 8rpx;
   letter-spacing: 1rpx;
 }
 .detail-en {
   font-size: 26rpx;
-  color: #dbe4f8;
+  color: var(--ink);
   line-height: 1.6;
 }
 .detail-zh {
   font-size: 24rpx;
-  color: #8fa2c9;
+  color: var(--muted);
   line-height: 1.7;
   margin-top: 4rpx;
 }
 .btn-next {
-  margin-top: 28rpx;
-  height: 88rpx;
-  border-radius: 44rpx;
-  background: linear-gradient(135deg, #5b8cff, #7c5cff);
+  margin-top: 26rpx;
+  height: 84rpx;
+  border-radius: 16rpx;
+  background: var(--accent);
   color: #fff;
   font-size: 28rpx;
   font-weight: 600;

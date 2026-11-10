@@ -1,8 +1,5 @@
 <template>
   <view class="page">
-    <view class="glow glow-a" />
-    <view class="glow glow-b" />
-
     <view class="header">
       <view class="brand">
         <text class="brand-dot" />
@@ -26,16 +23,16 @@
         :style="{ animationDelay: i * 60 + 'ms' }"
         @tap="startStudy(item)"
       >
-        <text class="card-emoji">{{ item.emoji }}</text>
+        <text class="card-mark">{{ item.mark }}</text>
         <text class="card-name">{{ item.name }}</text>
         <text class="card-desc">{{ item.desc }}</text>
-        <text class="card-go">开始 →</text>
+        <text class="card-go">开始学习 →</text>
       </view>
     </view>
 
     <view class="wrong-entry" hover-class="row-hover" @tap="goWrong">
       <view class="wrong-left">
-        <text class="wrong-icon">📕</text>
+        <view class="wrong-mark">错</view>
         <view class="wrong-info">
           <text class="wrong-title">我的错题集</text>
           <text class="wrong-desc">{{ wrongCount > 0 ? `已收录 ${wrongCount} 个易错词` : '还没有错题，先背一组吧' }}</text>
@@ -63,10 +60,10 @@ import { api } from '../../api.js';
 import { WORD_BATCH_SIZE } from '../../config.js';
 
 const LEVEL_META = [
-  { id: 'cet4', name: '四级', desc: 'CET-4 核心高频词', emoji: '🎯' },
-  { id: 'cet6', name: '六级', desc: 'CET-6 进阶词汇', emoji: '🚀' },
-  { id: 'ielts', name: '雅思', desc: 'IELTS 学术场景词', emoji: '✈️' },
-  { id: 'toefl', name: '托福', desc: 'TOEFL 学术高频词', emoji: '🎓' },
+  { id: 'cet4', name: '四级', desc: 'CET-4 核心高频词', mark: '4' },
+  { id: 'cet6', name: '六级', desc: 'CET-6 进阶词汇', mark: '6' },
+  { id: 'ielts', name: '雅思', desc: 'IELTS 学术场景词', mark: 'I' },
+  { id: 'toefl', name: '托福', desc: 'TOEFL 学术高频词', mark: 'T' },
 ];
 
 export default {
@@ -126,77 +123,65 @@ export default {
 
 <style scoped>
 .page {
-  min-height: 100vh;
-  padding: 40rpx 36rpx 60rpx;
-  position: relative;
-  overflow: hidden;
-  background: #0a0f1e;
-}
+  --ink: #1a2332;
+  --muted: #6b778a;
+  --line: #dce3ec;
+  --paper: #ffffff;
+  --accent: #0f7a6e;
+  --accent-soft: #e6f4f1;
+  --ok: #1a7f4b;
+  --ok-soft: #e8f6ee;
+  --warn: #9a6b14;
+  --warn-soft: #f8f0dc;
+  --bad: #c43c3c;
+  --bad-soft: #fceeee;
 
-.glow {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(80rpx);
-  opacity: 0.5;
-  pointer-events: none;
-}
-.glow-a {
-  width: 480rpx;
-  height: 480rpx;
-  top: -160rpx;
-  right: -160rpx;
-  background: radial-gradient(circle, rgba(109, 155, 255, 0.55), rgba(109, 155, 255, 0));
-}
-.glow-b {
-  width: 420rpx;
-  height: 420rpx;
-  top: 380rpx;
-  left: -180rpx;
-  background: radial-gradient(circle, rgba(140, 92, 255, 0.4), rgba(140, 92, 255, 0));
+  min-height: 100vh;
+  padding: 28rpx 32rpx 64rpx;
+  background:
+    radial-gradient(ellipse 90% 50% at 100% 0%, rgba(15, 122, 110, 0.08), transparent 55%),
+    linear-gradient(180deg, #edf2f7 0%, #f5f7fa 42%, #eef1f5 100%);
 }
 
 .header {
-  position: relative;
-  z-index: 1;
-  margin-bottom: 44rpx;
+  margin-bottom: 36rpx;
 }
 
 .brand {
   display: flex;
   align-items: center;
-  margin-bottom: 30rpx;
+  margin-bottom: 28rpx;
 }
 .brand-dot {
   width: 14rpx;
   height: 14rpx;
   border-radius: 50%;
-  background: #6d9bff;
-  box-shadow: 0 0 16rpx #6d9bff;
+  background: var(--accent);
   margin-right: 12rpx;
 }
 .brand-text {
-  font-size: 26rpx;
-  letter-spacing: 4rpx;
-  color: #8fa2c9;
+  font-size: 24rpx;
+  letter-spacing: 3rpx;
+  color: var(--muted);
   text-transform: uppercase;
   margin-right: auto;
 }
 .status {
   display: flex;
   align-items: center;
-  padding: 8rpx 18rpx;
+  padding: 8rpx 16rpx;
   border-radius: 999rpx;
-  font-size: 22rpx;
+  font-size: 20rpx;
 }
 .status-ok {
-  background: rgba(34, 197, 94, 0.12);
-  color: #4ade80;
-  border: 1rpx solid rgba(34, 197, 94, 0.3);
+  background: var(--ok-soft);
+  color: var(--ok);
+  border: 1rpx solid rgba(26, 127, 75, 0.22);
 }
 .status-warn {
-  background: rgba(250, 204, 21, 0.1);
-  color: #facc15;
-  border: 1rpx solid rgba(250, 204, 21, 0.28);
+  background: var(--warn-soft);
+  color: var(--warn);
+  border: 1rpx solid rgba(154, 107, 20, 0.22);
 }
 .status-dot {
   width: 10rpx;
@@ -208,23 +193,21 @@ export default {
 
 .title {
   display: block;
-  font-size: 56rpx;
+  font-size: 48rpx;
   font-weight: 700;
-  color: #f2f6ff;
+  color: var(--ink);
   line-height: 1.28;
   letter-spacing: 1rpx;
 }
 .subtitle {
   display: block;
-  margin-top: 14rpx;
+  margin-top: 12rpx;
   font-size: 26rpx;
-  color: #7c8aab;
+  color: var(--muted);
   line-height: 1.6;
 }
 
 .grid {
-  position: relative;
-  z-index: 1;
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
@@ -232,67 +215,68 @@ export default {
 
 .card {
   width: 328rpx;
-  height: 280rpx;
-  border-radius: 32rpx;
-  padding: 30rpx 26rpx;
-  margin-bottom: 24rpx;
+  min-height: 260rpx;
+  border-radius: 24rpx;
+  padding: 28rpx 26rpx;
+  margin-bottom: 22rpx;
   display: flex;
   flex-direction: column;
-  border: 1rpx solid rgba(255, 255, 255, 0.07);
-  background: linear-gradient(150deg, #182343 0%, #121a30 100%);
-  box-shadow: 0 16rpx 40rpx rgba(0, 0, 0, 0.35);
-  animation: rise 0.5s ease both;
-  position: relative;
-  overflow: hidden;
-}
-.card::after {
-  content: '';
-  position: absolute;
-  width: 200rpx;
-  height: 200rpx;
-  right: -80rpx;
-  bottom: -90rpx;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(109, 155, 255, 0.22), rgba(109, 155, 255, 0));
-}
-.card-cet6 {
-  background: linear-gradient(150deg, #1b2b45 0%, #101a2e 100%);
-}
-.card-ielts {
-  background: linear-gradient(150deg, #2a2347 0%, #151329 100%);
-}
-.card-toefl {
-  background: linear-gradient(150deg, #1d3346 0%, #101d28 100%);
+  background: var(--paper);
+  border: 1rpx solid var(--line);
+  box-shadow: 0 10rpx 28rpx rgba(26, 35, 50, 0.04);
+  animation: rise 0.45s ease both;
 }
 .card-hover {
-  transform: scale(0.97);
-  opacity: 0.9;
+  background: #f8fafc;
+  border-color: #c9d4e0;
 }
-.card-emoji {
-  font-size: 44rpx;
+.card-mark {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 14rpx;
   margin-bottom: auto;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 28rpx;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.card-cet6 .card-mark {
+  background: #eef1f7;
+  color: #4a5d7a;
+}
+.card-ielts .card-mark {
+  background: #f3eef8;
+  color: #6b5580;
+}
+.card-toefl .card-mark {
+  background: #eaf3f7;
+  color: #3d6a7a;
 }
 .card-name {
-  font-size: 40rpx;
+  font-size: 36rpx;
   font-weight: 700;
-  color: #f2f6ff;
+  color: var(--ink);
   margin-bottom: 8rpx;
 }
 .card-desc {
   font-size: 22rpx;
-  color: #7f8db0;
-  margin-bottom: 16rpx;
+  color: var(--muted);
+  margin-bottom: 18rpx;
+  line-height: 1.5;
 }
 .card-go {
   font-size: 24rpx;
-  color: #6d9bff;
+  color: var(--accent);
   font-weight: 600;
 }
 
 @keyframes rise {
   from {
     opacity: 0;
-    transform: translateY(24rpx);
+    transform: translateY(20rpx);
   }
   to {
     opacity: 1;
@@ -301,27 +285,36 @@ export default {
 }
 
 .wrong-entry {
-  position: relative;
-  z-index: 1;
-  margin-top: 16rpx;
+  margin-top: 10rpx;
   display: flex;
   align-items: center;
-  padding: 28rpx 30rpx;
-  border-radius: 28rpx;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1rpx solid rgba(255, 255, 255, 0.07);
+  padding: 26rpx 28rpx;
+  border-radius: 20rpx;
+  background: var(--paper);
+  border: 1rpx solid var(--line);
+  box-shadow: 0 8rpx 24rpx rgba(26, 35, 50, 0.03);
 }
 .row-hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: #f8fafc;
 }
 .wrong-left {
   display: flex;
   align-items: center;
   flex: 1;
 }
-.wrong-icon {
-  font-size: 40rpx;
+.wrong-mark {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 14rpx;
   margin-right: 20rpx;
+  background: var(--bad-soft);
+  color: var(--bad);
+  font-size: 26rpx;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 .wrong-info {
   display: flex;
@@ -330,34 +323,32 @@ export default {
 .wrong-title {
   font-size: 30rpx;
   font-weight: 600;
-  color: #e8edf9;
+  color: var(--ink);
 }
 .wrong-desc {
   font-size: 22rpx;
-  color: #7c8aab;
+  color: var(--muted);
   margin-top: 6rpx;
 }
 .wrong-arrow {
   font-size: 40rpx;
-  color: #55618a;
+  color: #a0abbc;
 }
 
 .footer {
-  position: relative;
-  z-index: 1;
-  margin-top: 60rpx;
+  margin-top: 52rpx;
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 .footer-line {
   font-size: 20rpx;
-  color: #55618a;
+  color: var(--muted);
   line-height: 1.9;
   text-align: center;
 }
 .footer-line.dim {
-  color: #3f4a6b;
+  color: #9aa5b5;
 }
 
 .mask {
@@ -366,7 +357,7 @@ export default {
   top: 0;
   right: 0;
   bottom: 0;
-  background: rgba(5, 8, 16, 0.7);
+  background: rgba(26, 35, 50, 0.28);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -375,25 +366,26 @@ export default {
 .loader {
   width: 320rpx;
   padding: 40rpx 0;
-  border-radius: 28rpx;
-  background: #141c30;
+  border-radius: 20rpx;
+  background: var(--paper);
   display: flex;
   flex-direction: column;
   align-items: center;
-  border: 1rpx solid rgba(255, 255, 255, 0.08);
+  border: 1rpx solid var(--line);
+  box-shadow: 0 16rpx 40rpx rgba(26, 35, 50, 0.1);
 }
 .spinner {
   width: 48rpx;
   height: 48rpx;
   border-radius: 50%;
-  border: 4rpx solid rgba(109, 155, 255, 0.25);
-  border-top-color: #6d9bff;
+  border: 4rpx solid rgba(15, 122, 110, 0.15);
+  border-top-color: var(--accent);
   animation: spin 0.8s linear infinite;
 }
 .loader-text {
   margin-top: 20rpx;
   font-size: 24rpx;
-  color: #8fa2c9;
+  color: var(--muted);
 }
 @keyframes spin {
   to {

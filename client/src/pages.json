@@ -4,18 +4,18 @@
       "path": "pages/index/index",
       "style": {
         "navigationBarTitleText": "选词书",
-        "navigationBarBackgroundColor": "#0a0f1e",
-        "navigationBarTextStyle": "white",
-        "backgroundColor": "#0a0f1e"
+        "navigationBarBackgroundColor": "#edf2f7",
+        "navigationBarTextStyle": "black",
+        "backgroundColor": "#f5f7fa"
       }
     },
     {
       "path": "pages/study/study",
       "style": {
         "navigationBarTitleText": "背单词",
-        "navigationBarBackgroundColor": "#0a0f1e",
-        "navigationBarTextStyle": "white",
-        "backgroundColor": "#0a0f1e",
+        "navigationBarBackgroundColor": "#edf2f7",
+        "navigationBarTextStyle": "black",
+        "backgroundColor": "#f5f7fa",
         "enablePullDownRefresh": false
       }
     },
@@ -23,23 +23,23 @@
       "path": "pages/wrong/wrong",
       "style": {
         "navigationBarTitleText": "错题集",
-        "navigationBarBackgroundColor": "#0a0f1e",
-        "navigationBarTextStyle": "white",
-        "backgroundColor": "#0a0f1e"
+        "navigationBarBackgroundColor": "#edf2f7",
+        "navigationBarTextStyle": "black",
+        "backgroundColor": "#f5f7fa"
       }
     }
   ],
   "globalStyle": {
-    "navigationBarTextStyle": "white",
+    "navigationBarTextStyle": "black",
     "navigationBarTitleText": "AI 背单词",
-    "navigationBarBackgroundColor": "#0a0f1e",
-    "backgroundColor": "#0a0f1e"
+    "navigationBarBackgroundColor": "#edf2f7",
+    "backgroundColor": "#f5f7fa"
   },
   "tabBar": {
-    "color": "#7c87a3",
-    "selectedColor": "#6d9bff",
-    "backgroundColor": "#0d1425",
-    "borderStyle": "black",
+    "color": "#6b778a",
+    "selectedColor": "#0f7a6e",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "white",
     "list": [
       { "pagePath": "pages/index/index", "text": "学习" },
       { "pagePath": "pages/wrong/wrong", "text": "错题集" }
