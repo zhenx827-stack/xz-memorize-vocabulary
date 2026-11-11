@@ -52,7 +52,8 @@ export const api = {
   aiStatus: () => request({ url: '/words/ai-status' }),
   levels: () => request({ url: '/words/levels' }),
   words: (payload) => request({ url: '/words/batch', method: 'POST', data: payload, timeout: 45000 }),
-  wrongList: () => request({ url: '/wrongbook' }),
+  wrongList: ({ number = 1, pageSize = 10 } = {}) =>
+    request({ url: '/wrongbook', data: { number, pageSize } }),
   wrongQuiz: () => request({ url: '/wrongbook/quiz' }),
   wrongAdd: (word) => request({ url: '/wrongbook', method: 'POST', data: { word } }),
   wrongRemove: (word) => request({ url: `/wrongbook/${encodeURIComponent(word)}`, method: 'DELETE' }),

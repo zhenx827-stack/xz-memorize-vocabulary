@@ -4,29 +4,29 @@
       <view class="header-row">
         <view>
           <text class="title">错题集</text>
-          <text class="subtitle">{{ list.length > 0 ? `共 ${list.length} 个易错词，答错自动收录` : '答错的单词会自动出现在这里' }}</text>
+          <text class="subtitle">{{ total > 0 ? `共 ${total} 个易错词，答错自动收录` : '答错的单词会自动出现在这里' }}</text>
         </view>
-        <view v-if="list.length > 0" class="clear-btn" hover-class="clear-hover" @tap="confirmClear">
+        <view v-if="total > 0" class="clear-btn" hover-class="clear-hover" @tap="confirmClear">
           <text>清空</text>
         </view>
       </view>
     </view>
 
-    <view v-if="list.length > 0" class="review-bar" hover-class="review-hover" @tap="startReview">
+    <view v-if="total > 0" class="review-bar" hover-class="review-hover" @tap="startReview">
       <view class="review-mark">复</view>
       <view class="review-text">
-        <text class="review-title">重新背这 {{ list.length }} 个错题</text>
+        <text class="review-title">重新背这 {{ total }} 个错题</text>
         <text class="review-sub">打乱顺序再考一遍，答对也不删，随时复习</text>
       </view>
       <text class="review-arrow">›</text>
     </view>
 
-    <view v-if="loading" class="empty">
+    <view v-if="loading && list.length === 0" class="empty">
       <view class="spinner" />
       <text class="empty-sub">加载中…</text>
     </view>
 
-    <view v-else-if="list.length === 0" class="empty">
+    <view v-else-if="!loading && list.length === 0" class="empty">
       <view class="empty-mark">空</view>
       <text class="empty-title">错题集还是空的</text>
       <text class="empty-sub">去背一组单词，答错的词会自动进来</text>
@@ -34,7 +34,7 @@
     </view>
 
     <view v-else class="list">
-      <view v-for="(item, i) in list" :key="item.word" class="item" :style="{ animationDelay: i * 40 + 'ms' }">
+      <view v-for="(item, i) in list" :key="item.word" class="item" :style="{ animationDelay: Math.min(i, 9) * 40 + 'ms' }">
         <view class="item-head">
           <view class="item-word-row">
             <text class="item-word">{{ item.word }}</text>
@@ -52,6 +52,11 @@
           <text class="item-remove" @tap.stop="remove(item)">移除</text>
         </view>
       </view>
+
+      <view class="load-more">
+        <view v-if="loadingMore" class="spinner mini" />
+        <text class="load-more-text">{{ footerText }}</text>
+      </view>
     </view>
   </view>
 </template>
@@ -60,37 +65,85 @@
 import { api } from '../../api.js';
 
 const LEVEL_NAME = { cet4: '四级', cet6: '六级', ielts: '雅思', toefl: '托福' };
+const PAGE_SIZE = 10;
 
 export default {
   data() {
     return {
       list: [],
+      total: 0,
+      page: 1,
+      hasMore: true,
       loading: true,
+      loadingMore: false,
     };
   },
+  computed: {
+    footerText() {
+      if (this.loadingMore) return '加载中…';
+      if (!this.hasMore) return this.list.length > 0 ? '已经到底了' : '';
+      return '上拉加载更多';
+    },
+  },
   onShow() {
-    this.load();
+    this.resetAndLoad();
+  },
+  onReachBottom() {
+    this.loadMore();
   },
   methods: {
     levelName(level) {
       return LEVEL_NAME[level] || '单词';
     },
-    async load() {
-      this.loading = true;
+    resetAndLoad() {
+      this.list = [];
+      this.total = 0;
+      this.page = 1;
+      this.hasMore = true;
+      this.loadingMore = false;
+      this.load(true);
+    },
+    async load(reset = false) {
+      if (reset) this.loading = true;
       try {
-        const res = await api.wrongList();
-        this.list = res.list || [];
+        const res = await api.wrongList({ number: this.page, pageSize: PAGE_SIZE });
+        const next = res.list || [];
+        this.list = reset ? next : this.list.concat(next);
+        this.total = res.total || 0;
+        this.hasMore = !!res.hasMore;
       } catch (e) {
-        this.list = [];
+        if (reset) {
+          this.list = [];
+          this.total = 0;
+          this.hasMore = false;
+        }
         uni.showToast({ title: e.message || '加载失败', icon: 'none' });
       } finally {
         this.loading = false;
+        this.loadingMore = false;
+      }
+    },
+    async loadMore() {
+      if (this.loading || this.loadingMore || !this.hasMore) return;
+      this.loadingMore = true;
+      const nextPage = this.page + 1;
+      try {
+        const res = await api.wrongList({ number: nextPage, pageSize: PAGE_SIZE });
+        this.list = this.list.concat(res.list || []);
+        this.total = res.total || 0;
+        this.hasMore = !!res.hasMore;
+        this.page = nextPage;
+      } catch (e) {
+        uni.showToast({ title: e.message || '加载失败', icon: 'none' });
+      } finally {
+        this.loadingMore = false;
       }
     },
     async remove(item) {
       try {
-        await api.wrongRemove(item.word);
+        const res = await api.wrongRemove(item.word);
         this.list = this.list.filter((it) => it.word !== item.word);
+        this.total = typeof res.total === 'number' ? res.total : Math.max(0, this.total - 1);
         uni.showToast({ title: '已移除', icon: 'none' });
       } catch (e) {
         uni.showToast({ title: e.message || '操作失败', icon: 'none' });
@@ -106,6 +159,9 @@ export default {
           try {
             await api.wrongClear();
             this.list = [];
+            this.total = 0;
+            this.page = 1;
+            this.hasMore = false;
             uni.showToast({ title: '已清空', icon: 'none' });
           } catch (e) {
             uni.showToast({ title: e.message || '操作失败', icon: 'none' });
@@ -317,6 +373,18 @@ export default {
   background: #f8fafc;
 }
 
+.load-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12rpx 0 8rpx;
+  gap: 12rpx;
+}
+.load-more-text {
+  font-size: 22rpx;
+  color: var(--muted);
+}
+
 .empty {
   min-height: 58vh;
   display: flex;
@@ -372,6 +440,12 @@ export default {
   border-top-color: var(--accent);
   animation: spin 0.85s linear infinite;
   margin-bottom: 20rpx;
+}
+.spinner.mini {
+  width: 28rpx;
+  height: 28rpx;
+  border-width: 3rpx;
+  margin-bottom: 0;
 }
 @keyframes spin {
   to {

@@ -24,9 +24,33 @@ function writeDb(db) {
   fs.renameSync(tmp, DB_PATH);
 }
 
-export function listWrong(deviceId) {
+/** 全量错题（按最近答错时间倒序），供组卷等内部使用 */
+export function listWrongAll(deviceId) {
   const list = readDb()[deviceId] || [];
   return [...list].sort((a, b) => b.lastWrongAt - a.lastWrongAt);
+}
+
+/**
+ * 分页错题列表
+ * @param {string} deviceId
+ * @param {{ number?: number|string, pageSize?: number|string }} opts
+ *   - number: 页码，从 1 开始
+ *   - pageSize: 每页条数，默认 10
+ */
+export function listWrong(deviceId, { number = 1, pageSize = 10 } = {}) {
+  const all = listWrongAll(deviceId);
+  const total = all.length;
+  const page = Math.max(1, parseInt(number, 10) || 1);
+  const size = Math.max(1, Math.min(100, parseInt(pageSize, 10) || 10));
+  const start = (page - 1) * size;
+  const list = all.slice(start, start + size);
+  return {
+    list,
+    total,
+    number: page,
+    pageSize: size,
+    hasMore: start + list.length < total,
+  };
 }
 
 export function addWrong(deviceId, word) {

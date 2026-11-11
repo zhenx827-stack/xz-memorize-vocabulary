@@ -29,8 +29,11 @@ const add = await hit('/api/wrongbook', {
 });
 ok(add.status === 200 && add.body.total >= 1, `POST /api/wrongbook → total=${add.body?.total}`);
 
-const list = await hit('/api/wrongbook', { headers: { 'x-device-id': deviceId } });
-ok(list.status === 200 && list.body.list.length >= 1, `GET /api/wrongbook → ${list.body?.total} 条错题`);
+const list = await hit('/api/wrongbook?number=1&pageSize=10', { headers: { 'x-device-id': deviceId } });
+ok(
+  list.status === 200 && list.body.list.length >= 1 && list.body.number === 1 && list.body.pageSize === 10,
+  `GET /api/wrongbook → total=${list.body?.total} number=${list.body?.number} pageSize=${list.body?.pageSize}`,
+);
 
 const del = await hit(`/api/wrongbook/${encodeURIComponent(words[0].word)}`, {
   method: 'DELETE',

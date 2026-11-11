@@ -17,6 +17,7 @@ wordRouter.get('/ai-status', (_req, res) => {
     model: config.deepseek.model,
     baseURL: config.deepseek.baseURL,
     timeoutMs: config.deepseek.timeout,
+    thinking: config.deepseek.thinking,
   });
 });
 

@@ -32,10 +32,12 @@ xz-memorize-vocabulary/
 cd server
 npm install
 # 编辑 .env，把 DEEPSEEK_API_KEY 换成你的真实 key（https://platform.deepseek.com）
+# 模型默认 deepseek-flash，且关闭 thinking，降低首次出题延迟
 npm start            # http://localhost:3000
 ```
 
 未填 key 也能跑通全部流程，此时会自动使用本地兜底词库，页面顶部会显示「降级词库」。
+若仍觉得慢：确认 `.env` 里是 `DEEPSEEK_MODEL=deepseek-flash` 且 `DEEPSEEK_THINKING=0`；同词书第二次起会走本地缓存池（默认 12 小时）。
 
 验证接口：
 
@@ -62,7 +64,7 @@ npm run dev:mp-weixin  # 微信小程序，产物在 dist/dev/mp-weixin，用开
 | GET | `/api/health` | 健康检查（含 AI 是否就绪） |
 | GET | `/api/words/ai-status` | 模型名 / 超时 / key 状态 |
 | POST | `/api/words/batch` | `{level, count, exclude, refresh}` → AI 生成单词（含 4 个选项） |
-| GET | `/api/wrongbook` | 错题列表（header `x-device-id`） |
+| GET | `/api/wrongbook` | 错题分页列表（`number`、`pageSize`；header `x-device-id`） |
 | GET | `/api/wrongbook/quiz` | 错题组卷（带选项，可直接作答） |
 | POST | `/api/wrongbook` | 收录错题 `{word:{...}}` |
 | DELETE | `/api/wrongbook/:word` | 移除单个错题 |

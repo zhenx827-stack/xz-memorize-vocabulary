@@ -25,7 +25,8 @@
         "navigationBarTitleText": "错题集",
         "navigationBarBackgroundColor": "#edf2f7",
         "navigationBarTextStyle": "black",
-        "backgroundColor": "#f5f7fa"
+        "backgroundColor": "#f5f7fa",
+        "onReachBottomDistance": 80
       }
     }
   ],

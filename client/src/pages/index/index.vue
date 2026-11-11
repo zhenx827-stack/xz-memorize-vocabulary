@@ -97,7 +97,7 @@ export default {
     },
     async loadWrongCount() {
       try {
-        const res = await api.wrongList();
+        const res = await api.wrongList({ number: 1, pageSize: 1 });
         this.wrongCount = res.total || 0;
       } catch (e) {
         this.wrongCount = 0;

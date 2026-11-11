@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { listWrong, addWrong, removeWrong, clearWrong } from '../store/wrongBook.js';
+import { listWrong, listWrongAll, addWrong, removeWrong, clearWrong } from '../store/wrongBook.js';
 import { withOptions } from '../services/wordService.js';
 
 export const wrongRouter = Router();
@@ -12,15 +12,18 @@ function getDeviceId(req) {
 wrongRouter.get('/', (req, res) => {
   const deviceId = getDeviceId(req);
   if (!deviceId) return res.status(400).json({ ok: false, error: '缺少 deviceId' });
-  const list = listWrong(deviceId);
-  res.json({ ok: true, total: list.length, list });
+  const result = listWrong(deviceId, {
+    number: req.query.number,
+    pageSize: req.query.pageSize,
+  });
+  res.json({ ok: true, ...result });
 });
 
 /** 错题复习用：把错题组装成可作答的题目（选项由本地词库补齐干扰项） */
 wrongRouter.get('/quiz', (req, res) => {
   const deviceId = getDeviceId(req);
   if (!deviceId) return res.status(400).json({ ok: false, error: '缺少 deviceId' });
-  const list = listWrong(deviceId);
+  const list = listWrongAll(deviceId);
   const words = list.map((it) => withOptions(it, it.level || 'cet4', list));
   res.json({ ok: true, total: words.length, words });
 });

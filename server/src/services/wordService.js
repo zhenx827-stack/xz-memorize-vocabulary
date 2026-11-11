@@ -130,6 +130,7 @@ async function requestFromDeepSeek(level, count, exclude) {
   const started = Date.now();
   let completion;
   try {
+    // thinking 为 DeepSeek 扩展字段；Node SDK 会原样打进请求体（不要包成 extra_body）
     completion = await getClient().chat.completions.create({
       model: config.deepseek.model,
       messages: [
@@ -140,6 +141,7 @@ async function requestFromDeepSeek(level, count, exclude) {
       temperature: 0.9,
       max_tokens: config.deepseek.maxTokens,
       stream: false,
+      thinking: { type: config.deepseek.thinking ? 'enabled' : 'disabled' },
     });
   } catch (err) {
     throw new AIUnavailableError(`DeepSeek 请求失败：${err.message}`, err);

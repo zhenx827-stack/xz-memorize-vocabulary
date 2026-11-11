@@ -7,9 +7,15 @@ export const config = {
   deepseek: {
     apiKey: (process.env.DEEPSEEK_API_KEY || '').trim(),
     baseURL: process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com',
-    model: process.env.DEEPSEEK_MODEL || 'deepseek-chat',
+    /** 推荐 deepseek-flash；legacy 别名 deepseek-chat 也可，勿用 deepseek-reasoner / v4-pro（更慢） */
+    model: process.env.DEEPSEEK_MODEL || 'deepseek-flash',
     timeout: num(process.env.DEEPSEEK_TIMEOUT, 20000),
     maxTokens: num(process.env.DEEPSEEK_MAX_TOKENS, 2400),
+    /**
+     * DeepSeek 默认开启 thinking，会先吐一大段 reasoning 再给 JSON，常见要多等数秒。
+     * 生成词卡不需要推理链，默认关闭；需要时可设 DEEPSEEK_THINKING=1
+     */
+    thinking: /^(1|true|on|yes)$/i.test(String(process.env.DEEPSEEK_THINKING || '').trim()),
   },
   /** 同一个词书生成结果在本地缓存多久（毫秒），默认 12 小时 */
   wordCacheTtl: num(process.env.WORD_CACHE_TTL, 12 * 60 * 60 * 1000),
