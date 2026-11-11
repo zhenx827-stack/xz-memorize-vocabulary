@@ -3,7 +3,6 @@ dist/
 unpackage/
 .env
 data/
-docs/
 *.log
 .DS_Store
 .hbuilderx/
