@@ -24,6 +24,34 @@ xz-memorize-vocabulary/
         └── wrong/wrong.vue     # 错题集（TabBar）
 ```
 
+## 页面说明
+
+学习 → 回答正确 / 回答错误 → 学习结果 → 错题列表 → 错题复习
+
+### 1. 学习
+
+![学习](docs/screenshots/学习.png)
+
+### 2. 回答正确
+
+![回答正确](docs/screenshots/回答正确.png)
+
+### 3. 回答错误
+
+![回答错误](docs/screenshots/回答错误.png)
+
+### 4. 学习结果
+
+![学习结果](docs/screenshots/学习结果.png)
+
+### 5. 错题列表
+
+![错题列表](docs/screenshots/错题列表.png)
+
+### 6. 错题复习
+
+![错题复习](docs/screenshots/错题复习.png)
+
 ## 快速开始
 
 ### 1. 启动后端
