@@ -3,6 +3,7 @@ import cors from 'cors';
 import { config, isKeyReady, LEVELS } from './config.js';
 import { wordRouter } from './routes/words.js';
 import { wrongRouter } from './routes/wrongbook.js';
+import { warmWordPools } from './services/wordService.js';
 
 const app = express();
 
@@ -39,4 +40,7 @@ app.listen(config.port, () => {
   console.log(`  模型: ${config.deepseek.model}  (${config.deepseek.baseURL})`);
   console.log(`  密钥: ${isKeyReady() ? '已配置 ✓' : '未配置 → 自动降级本地词库'}`);
   console.log('──────────────────────────────────────────────');
+  // 启动即后台预热各词书缓存，避免用户第一次点进去才等模型
+  const warm = warmWordPools();
+  if (warm.ok) console.log(`  预热: ${warm.message}`);
 });

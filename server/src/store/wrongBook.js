@@ -101,3 +101,54 @@ export function clearWrong(deviceId) {
   writeDb(db);
   return { total: 0 };
 }
+
+/**
+ * 从错题集随机抽题（优先同词书；错得越多/越近越靠前，再局部打散）
+ * @param {string} deviceId
+ * @param {{ level?: string, count?: number, exclude?: string[] }} opts
+ *   - exclude: 不要抽的词（本轮已选 / 本会话刚背过，由调用方决定）
+ */
+export function sampleWrongWords(deviceId, { level, count = 3, exclude = [] } = {}) {
+  if (!deviceId || count <= 0) return [];
+  const excludeSet = new Set(exclude.map((w) => String(w || '').toLowerCase()).filter(Boolean));
+  const all = listWrongAll(deviceId);
+  if (!all.length) return [];
+
+  const shuffle = (arr) => {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  };
+
+  const usable = all.filter((it) => !excludeSet.has(it.word.toLowerCase()));
+  if (!usable.length) return [];
+
+  const rank = (a, b) => {
+    const levelBias = (x) => (level && x.level === level ? 0 : 1);
+    if (levelBias(a) !== levelBias(b)) return levelBias(a) - levelBias(b);
+    if (b.wrongCount !== a.wrongCount) return b.wrongCount - a.wrongCount;
+    return b.lastWrongAt - a.lastWrongAt;
+  };
+
+  const sorted = [...usable].sort(rank);
+  const same = sorted.filter((it) => !level || it.level === level);
+  const other = sorted.filter((it) => level && it.level !== level);
+  const pool = [
+    ...shuffle(same.slice(0, Math.max(count * 3, count))),
+    ...shuffle(other.slice(0, count * 2)),
+  ];
+
+  const picked = [];
+  const seen = new Set();
+  for (const it of pool) {
+    const key = it.word.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    picked.push(it);
+    if (picked.length >= count) break;
+  }
+  return picked;
+}

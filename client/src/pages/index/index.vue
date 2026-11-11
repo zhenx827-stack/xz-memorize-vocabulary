@@ -10,7 +10,7 @@
         </view>
       </view>
       <text class="title">今天想背哪本书？</text>
-      <text class="subtitle">选一个词书，AI 现场生成 {{ batchSize }} 个单词卡片</text>
+      <text class="subtitle">选一个词书，立即开背 {{ batchSize }} 个单词（后台静默补 AI 词）</text>
     </view>
 
     <view class="grid">
@@ -42,7 +42,7 @@
     </view>
 
     <view class="footer">
-      <text class="footer-line">单词 · 音标 · 例句 · 记忆法 全部由 DeepSeek 实时生成</text>
+      <text class="footer-line">先秒开本地/缓存词卡，DeepSeek 在后台静默补库</text>
       <text class="footer-line dim">{{ statusText }}</text>
     </view>
 
@@ -88,8 +88,12 @@ export default {
         const res = await api.aiStatus();
         this.aiReady = !!res.ready;
         this.statusText = res.ready
-          ? `模型 ${res.model} · 超时 ${Math.round(res.timeoutMs / 1000)}s 后自动降级`
+          ? `模型 ${res.model} · 词库后台预热中，点进即可秒开`
           : '未配置 API Key，当前使用本地兜底词库（功能完整可用）';
+        if (res.ready) {
+          // 首页就触发预热，用户点词书时大概率已命中 AI 缓存
+          api.warm(this.levels.map((l) => l.id)).catch(() => {});
+        }
       } catch (e) {
         this.aiReady = false;
         this.statusText = '后端未连接，请先启动 server（npm start）';
@@ -106,7 +110,9 @@ export default {
     startStudy(item) {
       if (this.loading) return;
       this.loading = true;
-      this.loadingText = `${item.name}词汇生成中…`;
+      this.loadingText = `进入${item.name}…`;
+      // 点词书时再催一波该 level 的预热（幂等）
+      api.warm([item.id]).catch(() => {});
       uni.navigateTo({
         url: `/pages/study/study?level=${item.id}`,
         complete: () => {

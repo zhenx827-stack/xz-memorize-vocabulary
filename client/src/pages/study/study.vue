@@ -49,13 +49,11 @@
         </view>
         <view class="topbar-info">
           <text class="counter">{{ index + 1 }} / {{ words.length }}</text>
-          <text :class="['source-tag', degraded ? 'tag-fallback' : 'tag-ai']">
-            {{ degraded ? '本地词库' : 'AI 生成' }}
-          </text>
+          <text :class="['source-tag', sourceTagClass]">{{ sourceLabel }}</text>
         </view>
       </view>
 
-      <view v-if="degraded" class="notice">
+      <view v-if="notice && (degraded || (mix && mix.fromWrong > 0))" class="notice">
         <text>{{ notice }}</text>
       </view>
 
@@ -118,7 +116,7 @@ export default {
       level: 'cet4',
       levelName: '四级',
       status: 'loading',
-      loadingHint: 'DeepSeek 正在出题，请稍候…',
+      loadingHint: '正在准备题目…',
       errorMsg: '',
       words: [],
       index: 0,
@@ -128,10 +126,15 @@ export default {
       correctCount: 0,
       wrongCount: 0,
       degraded: false,
+      source: '',
+      mix: null,
       notice: '',
       cardAnim: false,
       keys: ['A', 'B', 'C', 'D'],
       timer: null,
+      /** 学习中预取的下一组，点「再来一组」可秒切 */
+      prefetch: null,
+      seenWords: [],
     };
   },
   computed: {
@@ -145,45 +148,108 @@ export default {
       const total = this.correctCount + this.wrongCount;
       return total ? Math.round((this.correctCount / total) * 100) : 0;
     },
+    sourceLabel() {
+      const wrongN = this.mix?.fromWrong || 0;
+      if (wrongN > 0 && this.source === 'wrong') return `错题复习 ${wrongN}`;
+      if (wrongN > 0) return this.degraded ? `本地+错题` : `AI+错题`;
+      return this.degraded ? '本地词库' : 'AI 生成';
+    },
+    sourceTagClass() {
+      if (this.mix?.fromWrong > 0) return 'tag-wrong';
+      return this.degraded ? 'tag-fallback' : 'tag-ai';
+    },
   },
   onLoad(options) {
     this.mode = options.mode === 'wrong' ? 'wrong' : 'level';
     this.level = options.level && LEVEL_NAME[options.level] ? options.level : 'cet4';
     this.levelName = this.mode === 'wrong' ? '错题复习' : LEVEL_NAME[this.level];
     uni.setNavigationBarTitle({ title: this.mode === 'wrong' ? '错题复习' : `${this.levelName}背单词` });
+    this.seenWords = this.loadSeenWords();
     this.loadBatch(false);
   },
   onUnload() {
     if (this.timer) clearTimeout(this.timer);
   },
   methods: {
+    seenStorageKey() {
+      return `vocab_seen_${this.level}`;
+    },
+    loadSeenWords() {
+      try {
+        const raw = uni.getStorageSync(this.seenStorageKey());
+        return Array.isArray(raw) ? raw.map(String).slice(-200) : [];
+      } catch (e) {
+        return [];
+      }
+    },
+    saveSeenWords() {
+      try {
+        uni.setStorageSync(this.seenStorageKey(), this.seenWords.slice(-200));
+      } catch (e) {
+        /* ignore */
+      }
+    },
+    applyBatch(res) {
+      const list = res.words || [];
+      if (list.length === 0) return false;
+      this.words = list;
+      this.index = 0;
+      this.selected = '';
+      this.answered = false;
+      this.isCorrect = false;
+      this.correctCount = 0;
+      this.wrongCount = 0;
+      this.degraded = !!res.degraded;
+      this.source = res.source || '';
+      this.mix = res.mix || null;
+      this.notice = res.message || '';
+      this.seenWords = [...new Set([...this.seenWords, ...list.map((w) => w.word)])].slice(-200);
+      this.saveSeenWords();
+      this.status = 'playing';
+      this.prefetch = null;
+      if (this.mode !== 'wrong') this.prefetchNext();
+      return true;
+    },
+    async prefetchNext() {
+      if (this.mode === 'wrong') return;
+      try {
+        const res = await api.words({
+          level: this.level,
+          count: WORD_BATCH_SIZE,
+          refresh: false,
+          exclude: this.seenWords,
+        });
+        if (res?.words?.length) this.prefetch = res;
+      } catch (e) {
+        this.prefetch = null;
+      }
+    },
     async loadBatch(refresh) {
+      // 「再来一组」优先吃预取结果，页面几乎无感切换
+      if (refresh && this.prefetch?.words?.length) {
+        this.applyBatch(this.prefetch);
+        return;
+      }
+
       this.status = 'loading';
-      this.loadingHint = this.mode === 'wrong' ? '正在整理你的错题…' : `DeepSeek 正在生成${this.levelName}单词…`;
+      this.loadingHint = this.mode === 'wrong' ? '正在整理你的错题…' : `正在准备${this.levelName}单词…`;
       this.errorMsg = '';
       try {
         const res =
           this.mode === 'wrong'
             ? await api.wrongQuiz()
-            : await api.words({ level: this.level, count: WORD_BATCH_SIZE, refresh, exclude: [] });
+            : await api.words({
+                level: this.level,
+                count: WORD_BATCH_SIZE,
+                refresh,
+                // 始终带上已背过的词，避免本地词库刷完后又抽回原题
+                exclude: this.seenWords,
+              });
 
-        const list = res.words || [];
-        if (list.length === 0) {
+        if (!this.applyBatch(res)) {
           this.status = 'error';
           this.errorMsg = this.mode === 'wrong' ? '错题集是空的，先去背一组单词吧' : '没有拿到单词数据';
-          return;
         }
-
-        this.words = list;
-        this.index = 0;
-        this.selected = '';
-        this.answered = false;
-        this.isCorrect = false;
-        this.correctCount = 0;
-        this.wrongCount = 0;
-        this.degraded = !!res.degraded;
-        this.notice = res.message || '';
-        this.status = 'playing';
       } catch (e) {
         this.status = 'error';
         this.errorMsg = e.message || '网络异常';
@@ -415,6 +481,9 @@ export default {
 }
 .tag-fallback {
   color: var(--warn);
+}
+.tag-wrong {
+  color: var(--bad);
 }
 
 .notice {

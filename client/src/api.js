@@ -51,7 +51,10 @@ export const api = {
   health: () => request({ url: '/health' }),
   aiStatus: () => request({ url: '/words/ai-status' }),
   levels: () => request({ url: '/words/levels' }),
-  words: (payload) => request({ url: '/words/batch', method: 'POST', data: payload, timeout: 45000 }),
+  /** 后台预热词库，不阻塞 UI */
+  warm: (levels) => request({ url: '/words/warm', method: 'POST', data: { levels }, timeout: 8000 }),
+  /** batch 已改为秒开（缓存/兜底），超时可缩短 */
+  words: (payload) => request({ url: '/words/batch', method: 'POST', data: payload, timeout: 15000 }),
   wrongList: ({ number = 1, pageSize = 10 } = {}) =>
     request({ url: '/wrongbook', data: { number, pageSize } }),
   wrongQuiz: () => request({ url: '/wrongbook/quiz' }),

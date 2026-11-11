@@ -2,15 +2,16 @@
  * 词库服务：DeepSeek 生成 + 本地缓存池 + 兜底降级
  *
  * 设计要点：
- * 1. 单词数据全部由大模型产出（word / 音标 / 词性 / 释义 / 例句 / 记忆法 / 干扰项）
- * 2. 生成结果按词书写入本地缓存池，避免每次点词书都重复消耗 token
- * 3. 模型超时、报错、无 key 时自动降级到本地兜底词库，接口始终 200，前端流程不中断
+ * 1. 用户取词路径永不阻塞等模型：有缓存秒返，没有则本地兜底秒开
+ * 2. DeepSeek 只在后台补池（启动预热 / 池子偏低 / 首页 warm）
+ * 3. 生成结果按词书写入本地缓存池；无 key / 失败时全程可用本地兜底
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import OpenAI from 'openai';
 import { config, LEVELS, isKeyReady } from '../config.js';
 import { FALLBACK_WORDS } from '../data/fallbackWords.js';
+import { sampleWrongWords } from '../store/wrongBook.js';
 
 const DATA_DIR = path.resolve(process.cwd(), 'data');
 fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -179,92 +180,286 @@ async function requestFromDeepSeek(level, count, exclude) {
   };
 }
 
-/* ------------------------------ 兜底词库 ------------------------------ */
+/* ------------------------------ 组卷：新词优先 + 错题补位 ------------------------------ */
 
-function fallbackBatch(level, count, exclude) {
+function decorateFallback(level, word) {
   const bank = FALLBACK_WORDS[level] || [];
-  const excludeSet = new Set(exclude.map((w) => w.toLowerCase()));
   const meanings = bank.map((w) => w.meaning);
+  return {
+    ...word,
+    mnemonic:
+      word.mnemonic ||
+      `本地兜底词：${word.word} 常出现在 ${LEVELS[level].name} 阅读与写作中，先记搭配再记释义。`,
+    distractors:
+      Array.isArray(word.distractors) && word.distractors.length
+        ? word.distractors
+        : shuffle(meanings.filter((m) => m !== word.meaning)).slice(0, 3),
+  };
+}
 
-  const picked = shuffle(bank.filter((w) => !excludeSet.has(w.word.toLowerCase())));
-  const chosen = picked.slice(0, count);
-  // 词库不够时循环补齐（保证流程可走通）
-  for (let i = 0; chosen.length < count && chosen.length < bank.length; i += 1) {
-    chosen.push(bank[i % bank.length]);
+/** 从未背过的列表里取词，绝不回填 exclude 里的词 */
+function takeFresh(list, excludeSet, alreadyKeys, count) {
+  if (count <= 0) return [];
+  return shuffle(
+    list.filter((w) => {
+      const key = w.word.toLowerCase();
+      return !excludeSet.has(key) && !alreadyKeys.has(key);
+    }),
+  ).slice(0, count);
+}
+
+function pushUnique(out, alreadyKeys, items, mapItem) {
+  for (const raw of items) {
+    const item = mapItem ? mapItem(raw) : raw;
+    const key = item.word.toLowerCase();
+    if (alreadyKeys.has(key)) continue;
+    alreadyKeys.add(key);
+    out.push(item);
+  }
+}
+
+/**
+ * 组一卷：
+ * 1. 未背过的 AI 池 / 本地兜底
+ * 2. 新词不够时，优先从错题集随机补（同词书优先）
+ * 3. 仍不够 → 再抽已背过的错题复习（不重复抽本地旧词硬凑）
+ * 4. 实在没有可出的题 → 才允许回收本地词，并标明「新词生成中」
+ */
+function composeWordList({ level, count, excludeList, excludeSet, pool, deviceId }) {
+  const out = [];
+  const alreadyKeys = new Set();
+  const poolWords = pool?.words || [];
+  const bank = (FALLBACK_WORDS[level] || []).map((w) => decorateFallback(level, w));
+  const tags = { fromPool: 0, fromFallback: 0, fromWrong: 0, recycled: 0 };
+
+  const freshPool = poolWords.filter((w) => !excludeSet.has(w.word.toLowerCase()));
+  const freshBank = bank.filter((w) => !excludeSet.has(w.word.toLowerCase()));
+  const freshAvailable = new Set([
+    ...freshPool.map((w) => w.word.toLowerCase()),
+    ...freshBank.map((w) => w.word.toLowerCase()),
+  ]).size;
+
+  // 有错题时：新词充足也掺入约 1/3 复习；新词不够则错题优先占位
+  let wrongQuota = 0;
+  if (deviceId) {
+    wrongQuota =
+      freshAvailable >= count
+        ? Math.min(Math.ceil(count / 3), count)
+        : Math.min(count, Math.max(Math.ceil(count / 2), count - freshAvailable));
   }
 
-  return chosen.map((w) => ({
-    ...w,
-    mnemonic: `本地兜底词：${w.word} 常出现在 ${LEVELS[level].name} 阅读与写作中，先记搭配再记释义。`,
-    distractors: shuffle(meanings.filter((m) => m !== w.meaning)).slice(0, 3),
-  }));
+  if (wrongQuota > 0) {
+    const wrongs = sampleWrongWords(deviceId, {
+      level,
+      count: wrongQuota,
+      exclude: excludeList,
+    });
+    pushUnique(out, alreadyKeys, wrongs, (w) => ({
+      ...w,
+      mnemonic: w.mnemonic || `错题复习：${w.word}`,
+      fromWrong: true,
+    }));
+    tags.fromWrong = out.length;
+  }
+
+  const needAfterWrong = count - out.length;
+  const fromPool = takeFresh(poolWords, excludeSet, alreadyKeys, needAfterWrong);
+  pushUnique(out, alreadyKeys, fromPool);
+  tags.fromPool = fromPool.length;
+
+  const needAfterPool = count - out.length;
+  const fromBank = takeFresh(bank, excludeSet, alreadyKeys, needAfterPool);
+  pushUnique(out, alreadyKeys, fromBank);
+  tags.fromFallback = fromBank.length;
+
+  // 新词仍不够：可再抽「本会话已见过」的错题补位（只排除本轮已选）
+  if (out.length < count && deviceId) {
+    const moreWrong = sampleWrongWords(deviceId, {
+      level,
+      count: count - out.length,
+      exclude: [...alreadyKeys],
+    });
+    const before = out.length;
+    pushUnique(out, alreadyKeys, moreWrong, (w) => ({
+      ...w,
+      mnemonic: w.mnemonic || `错题复习：${w.word}`,
+      fromWrong: true,
+    }));
+    tags.fromWrong += out.length - before;
+  }
+
+  // 最后手段：本地词全答完且无错题可抽时，才回收旧词，避免空卷
+  if (out.length === 0) {
+    const recycled = shuffle([...poolWords, ...bank]).slice(0, count);
+    pushUnique(out, alreadyKeys, recycled.map((w) => decorateFallback(level, w)));
+    tags.recycled = out.length;
+  }
+
+  const context = dedupeByWord([...poolWords, ...bank, ...out]);
+  const source =
+    tags.fromPool > 0 && pool?.source === 'ai'
+      ? 'ai'
+      : tags.fromWrong > 0 && tags.fromPool === 0 && tags.fromFallback === 0
+        ? 'wrong'
+        : tags.fromFallback > 0 || tags.recycled > 0
+          ? 'fallback'
+          : pool?.source === 'ai'
+            ? 'ai'
+            : 'fallback';
+
+  let message;
+  if (tags.recycled > 0) {
+    message = '本词书本地新词已刷完，正在后台生成；本轮先复习已出现过的词';
+  } else if (tags.fromWrong > 0 && freshAvailable < count) {
+    message = `本地新词不足，已从错题集随机加入 ${tags.fromWrong} 个复习`;
+  } else if (tags.fromWrong > 0) {
+    message = `本轮含 ${tags.fromWrong} 个错题复习 + ${tags.fromPool + tags.fromFallback} 个新词`;
+  } else if (pool?.source === 'ai' && tags.fromPool > 0) {
+    message = '来自 AI 词库缓存';
+  } else {
+    message = '本地兜底词库（后台正在生成 AI 词）';
+  }
+
+  return {
+    // 打散顺序，避免错题总挤在卷首
+    words: shuffle(out.slice(0, count)).map((w) => withOptions(w, level, context)),
+    source,
+    degraded: source !== 'ai',
+    message,
+    mix: tags,
+    freshAvailable,
+  };
+}
+
+/* ------------------------------ 后台补池（不阻塞接口） ------------------------------ */
+
+/** 每个 level 同时只排队一次，避免重复打 DeepSeek */
+const refillQueued = new Set();
+/** 全局串行补池，防止多词书并行打爆限流 */
+let refillChain = Promise.resolve();
+
+/** 池子剩余可用词低于该值时触发后台补池 */
+const POOL_REFILL_THRESHOLD = 30;
+/** 单次后台补池请求生成的词数 */
+const POOL_REFILL_COUNT = 20;
+
+function schedulePoolRefill(level, exclude = []) {
+  if (!isKeyReady()) return;
+  if (refillQueued.has(level)) return;
+  refillQueued.add(level);
+
+  const job = async () => {
+    try {
+      const pool = readPool(level);
+      const known = [
+        ...new Set([
+          ...(pool?.words || []).map((w) => w.word),
+          ...exclude.map((w) => String(w || '').toLowerCase()).filter(Boolean),
+        ]),
+      ];
+      console.log(`[words] 后台补池开始 → ${level}`);
+      const { words, meta } = await requestFromDeepSeek(level, POOL_REFILL_COUNT, known);
+      const prev = pool?.source === 'ai' ? pool.words : [];
+      const merged = dedupeByWord([...prev, ...words]);
+      writePool(level, {
+        level,
+        source: 'ai',
+        createdAt: Date.now(),
+        words: merged,
+        meta,
+      });
+      console.log(
+        `[words] 后台补池完成 → ${level} +${words.length}（共 ${merged.length}，${meta.latencyMs}ms）`,
+      );
+    } catch (err) {
+      const reason = err instanceof AIUnavailableError ? err.message : err.message;
+      console.warn(`[words] 后台补池失败 → ${level}:`, reason);
+    } finally {
+      refillQueued.delete(level);
+    }
+  };
+
+  refillChain = refillChain.then(job, job);
+  return refillChain;
+}
+
+function serveInstant({ level, count, excludeList, excludeSet, pool, deviceId, started, forceRefresh }) {
+  const composed = composeWordList({
+    level,
+    count,
+    excludeList,
+    excludeSet,
+    pool,
+    deviceId,
+  });
+
+  const low = composed.freshAvailable < POOL_REFILL_THRESHOLD;
+  const needRefill = forceRefresh || low || !pool || pool.source !== 'ai' || composed.mix.recycled > 0;
+  if (needRefill) {
+    schedulePoolRefill(level, [...excludeList, ...composed.words.map((w) => w.word)]);
+  }
+
+  return {
+    words: composed.words,
+    source: composed.source,
+    degraded: composed.degraded,
+    message: composed.message,
+    cached: Boolean(pool?.words?.length),
+    mix: composed.mix,
+    latencyMs: Date.now() - started,
+    refillQueued: needRefill,
+  };
+}
+
+/**
+ * 服务启动 / 首页预热：异步把各词书池子填起来，用户点进来时几乎必命中缓存。
+ */
+export function warmWordPools(levels = Object.keys(LEVELS)) {
+  if (!isKeyReady()) {
+    return { ok: false, message: '未配置 API Key，跳过预热' };
+  }
+  const list = levels.filter((l) => LEVELS[l]);
+  for (const level of list) {
+    const pool = readPool(level);
+    const size = pool?.words?.length || 0;
+    if (size >= POOL_REFILL_THRESHOLD && pool?.source === 'ai') continue;
+    schedulePoolRefill(level);
+  }
+  return { ok: true, message: `已排队预热：${list.join(', ')}` };
 }
 
 /* ------------------------------ 对外主流程 ------------------------------ */
 
 /**
- * 取一批单词
- * @returns {{words:Array, source:'ai'|'fallback', degraded:boolean, message:string, latencyMs:number}}
+ * 取一批单词（用户路径永不阻塞等 DeepSeek）
+ *
+ * 策略：
+ * 1. 优先未背过的缓存/兜底词；新词不够则随机掺入错题
+ * 2. 绝不靠「循环本地旧词」硬凑满一组（除非完全无题可出）
+ * 3. 后台异步补 AI 池；forceRefresh 只触发补池，不阻塞
  */
-export async function fetchWordBatch({ level, count = 10, exclude = [], forceRefresh = false }) {
+export async function fetchWordBatch({
+  level,
+  count = 10,
+  exclude = [],
+  forceRefresh = false,
+  deviceId = '',
+}) {
   const started = Date.now();
   const excludeList = exclude.map((w) => String(w || '').toLowerCase()).filter(Boolean);
   const excludeSet = new Set(excludeList);
+  const pool = readPool(level);
 
-  const pool = forceRefresh ? null : readPool(level);
-  if (pool) {
-    const usable = pool.words.filter((w) => !excludeSet.has(w.word.toLowerCase()));
-    if (usable.length >= count) {
-      const picked = shuffle(usable).slice(0, count);
-      return {
-        words: picked.map((w) => withOptions(w, level, pool.words)),
-        source: pool.source === 'ai' ? 'ai' : 'fallback',
-        degraded: pool.source !== 'ai',
-        message: pool.source === 'ai' ? '来自 AI 词库缓存' : 'AI 暂不可用，当前为本地兜底词库',
-        cached: true,
-        latencyMs: Date.now() - started,
-      };
-    }
-  }
-
-  const known = [...new Set([...(pool?.words || []).map((w) => w.word), ...excludeList])];
-
-  try {
-    const { words, meta } = await requestFromDeepSeek(level, Math.max(count, 10), known);
-    const merged = dedupeByWord([...(pool?.source === 'ai' ? pool.words : []), ...words]);
-    writePool(level, { level, source: 'ai', createdAt: Date.now(), words: merged, meta });
-
-    const usable = merged.filter((w) => !excludeSet.has(w.word.toLowerCase()));
-    const picked = shuffle(usable).slice(0, count);
-    return {
-      words: picked.map((w) => withOptions(w, level, merged)),
-      source: 'ai',
-      degraded: false,
-      message: `AI 生成 ${words.length} 个新词（${meta.model}，${meta.latencyMs}ms）`,
-      cached: false,
-      latencyMs: Date.now() - started,
-      aiMeta: meta,
-    };
-  } catch (err) {
-    const reason = err instanceof AIUnavailableError ? err.message : `模型异常：${err.message}`;
-    console.warn('[words] 降级到本地词库 →', reason);
-
-    // 缓存里已有的 AI 词先复用，避免降级后重复
-    const poolWords = pool?.words || [];
-    const usablePool = poolWords.filter((w) => !excludeSet.has(w.word.toLowerCase()));
-    const need = Math.max(count - usablePool.length, 0);
-    const filler = need > 0 ? fallbackBatch(level, need, [...known, ...usablePool.map((w) => w.word)]) : [];
-    const merged = [...shuffle(usablePool).slice(0, count), ...filler].slice(0, count);
-
-    return {
-      words: merged.map((w) => withOptions(w, level, [...poolWords, ...filler])),
-      source: 'fallback',
-      degraded: true,
-      message: `${reason}，已切换本地兜底词库`,
-      cached: false,
-      latencyMs: Date.now() - started,
-    };
-  }
+  return serveInstant({
+    level,
+    count,
+    excludeList,
+    excludeSet,
+    pool,
+    deviceId,
+    started,
+    forceRefresh,
+  });
 }
 
 function dedupeByWord(list) {
